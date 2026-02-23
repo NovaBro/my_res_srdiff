@@ -6,6 +6,7 @@ import torch
 import lpips
 import torchvision.utils as vutils
 import numpy as np
+import pandas as pd
 
 from networks.unet import UNetModelSwin
 import torch.amp as amp
@@ -514,6 +515,137 @@ class Model(object):
             print(f"LPIP: {np.mean(metrics['lpip_before']):.4f} --> {np.mean(metrics['lpip_after']):.4f}")
             print(f"GMSD: {np.mean(metrics['gmsd_before']):.4f} --> {np.mean(metrics['gmsd_after']):.4f}")
             print(f"VIfp: {np.mean(metrics['vif_before']):.4f} --> {np.mean(metrics['vif_after']):.4f}")
+            print(f"Average evaluation time : {np.mean(metrics['validation_time']):.4f} seconds")
+
+
+            with open(os.path.join(out_dir, "qmetrics.pkl"), 'wb') as f:
+                pickle.dump(metrics, f)
+
+    def kaggle_submit(self, batch_size = None, out_dir = None):
+        if batch_size is None:
+            batch_size = self.flags.test_batch_size
+
+        print(f"Number of total steps {len(self.test_data_loader) * batch_size}")
+        if out_dir is None:
+            out_dir = self.flags.out_dir_test
+
+        print("Performing kaggle_submit ...")
+
+        self.model.eval()
+
+        metrics = {}
+        metrics['psnr_before'] = []
+        metrics['psnr_after'] = []
+
+        metrics['nmse_before'] = []
+        metrics['nmse_after'] = []
+
+        metrics['ssim_before'] = []
+        metrics['ssim_after'] = []
+
+        metrics['lpip_before'] = []
+        metrics['lpip_after'] = []
+
+        metrics['vif_before'] = []
+        metrics['vif_after'] = []
+
+        metrics['gmsd_before'] = []
+        metrics['gmsd_after'] = []
+
+        metrics['validation_time'] = []
+
+        out_df = {
+            
+        }
+        with torch.no_grad():
+            for ii, data in enumerate(tqdm(self.test_data_loader)):
+                im_lq = data['lq'].to(self.device, dtype=torch.float)
+                # im_gt = data['hq'].to(self.device, dtype=torch.float)
+
+                # num_iters = 0
+                if self.flags.cond_lq:
+                    model_kwargs = {'lq': im_lq, }
+                else:
+                    model_kwargs = None
+
+                s_time = time()
+                results = self.base_diffusion.p_sample_loop(
+                    y=im_lq,
+                    model=self.model,
+                    first_stage_model=self.autoencoder,
+                    noise=None,
+                    noise_repeat=False,
+                    clip_denoised=True if self.autoencoder is None else False,
+                    denoised_fn=None,
+                    model_kwargs=model_kwargs,
+                    progress=False,
+                )  # This has included the decoding for latent space results
+
+
+                metrics['validation_time'].append(time() - s_time)
+                # print(data['sample'], data['layer'])
+                with h5py.File(os.path.join(out_dir, 'sample_{}_layer_{}.h5'.format(data['sample'][0], data['layer'][0])), 'w') as hf:
+                    # hf.create_dataset('img_hr', data=self.to_int(im_gt))
+                    hf.create_dataset('img_lq', data=self.to_int(im_lq[0]))
+                    hf.create_dataset('img_pred', data=self.to_int(results[0]))
+                    hf.create_dataset('sample', data=data['sample'][0])
+                    hf.create_dataset('layer', data=data['layer'][0])
+               
+                with h5py.File(os.path.join(out_dir, 'sample_{}_layer_{}.h5'.format(data['sample'][1], data['layer'][1])), 'w') as hf:
+                    # hf.create_dataset('img_hr', data=self.to_int(im_gt))
+                    hf.create_dataset('img_lq', data=self.to_int(im_lq[1]))
+                    hf.create_dataset('img_pred', data=self.to_int(results[1]))
+                    hf.create_dataset('sample', data=data['sample'][1])
+                    hf.create_dataset('layer', data=data['layer'][1])
+                
+
+
+                results_ = results.clip(-1, 1) * .5 + .5
+                im_lq_ = im_lq * .5 + .5
+                # im_gt_ = im_gt * .5 + .5
+
+                # metrics['psnr_before'].append(psnr(im_lq_, im_gt_, data_range=1.0).item())
+                # metrics['psnr_after'].append(psnr(results_, im_gt_, data_range=1.0).item())
+
+                # metrics['nmse_before'].append(self.compute_nmse(im_lq_, im_gt_).item())
+                # metrics['nmse_after'].append(self.compute_nmse(results_, im_gt_).item())
+
+                # metrics['ssim_before'].append(ssim(im_lq_, im_gt_, data_range=1.0).item())
+                # metrics['ssim_after'].append(ssim(results_, im_gt_, data_range=1.0).item())
+
+
+
+
+                # metrics['lpip_before'].append(self.lpips_loss(im_lq.repeat(1, 3, 1, 1),
+                #                                               im_gt.repeat(1, 3, 1, 1)).sum().item())
+                # metrics['lpip_after'].append(self.lpips_loss(results.repeat(1, 3, 1, 1),
+                #                                              im_gt.repeat(1, 3, 1, 1)).sum().item())
+
+                # metrics['vif_before'].append(vif_p(im_lq_, im_gt_, data_range=1.0).item())
+                # metrics['vif_after'].append(vif_p(results_, im_gt_, data_range=1.0).item())
+
+                # metrics['gmsd_before'].append(gmsd(im_lq_, im_gt_).item())
+                # metrics['gmsd_after'].append(gmsd(results_, im_gt_).item())
+
+
+                # viz_sample = torch.cat((im_lq * 0.5 + 0.5,
+                #                         results * 0.5 + 0.5,
+                #                         torch.abs(results - im_gt),
+                #                         ),
+                #                        dim=0)  # unet
+                viz_sample = results
+                vutils.save_image(viz_sample,
+                                  os.path.join(out_dir, 'sample_{}_layer_{}.png'.format(data['sample'][0], data['layer'][0])),  # out_dir_outs
+                                #   nrow=batch_size,
+                                  normalize=True)
+                
+
+            # print(f"NMSE: {np.mean(metrics['nmse_before']):.4f} --> {np.mean(metrics['nmse_after']):.4f}")
+            # print(f"PSNR: {np.mean(metrics['psnr_before']):.4f} --> {np.mean(metrics['psnr_after']):.4f}")
+            # print(f"SSIM: {np.mean(metrics['ssim_before']):.4f} --> {np.mean(metrics['ssim_after']):.4f}")
+            # print(f"LPIP: {np.mean(metrics['lpip_before']):.4f} --> {np.mean(metrics['lpip_after']):.4f}")
+            # print(f"GMSD: {np.mean(metrics['gmsd_before']):.4f} --> {np.mean(metrics['gmsd_after']):.4f}")
+            # print(f"VIfp: {np.mean(metrics['vif_before']):.4f} --> {np.mean(metrics['vif_after']):.4f}")
             print(f"Average evaluation time : {np.mean(metrics['validation_time']):.4f} seconds")
 
 

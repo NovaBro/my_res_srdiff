@@ -17,8 +17,8 @@ FLAGS = None
 
 def main():
     print(FLAGS.message)
-    all_train_gt = '/path/to/train/data'
-    all_valid_gt = "/path/to/valid/data"
+    all_train_gt = "./h5py/train"
+    all_valid_gt = "./h5py/val"
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -26,7 +26,7 @@ def main():
     num_gpus = torch.cuda.device_count()
 
     if FLAGS.train:
-        train_datset = ImageDataset(gt_name=all_train_gt)
+        train_datset = ImageDataset(gt_name=all_train_gt, FLAGS=FLAGS)
 
         print(f"Loading data ...")
 
@@ -38,7 +38,7 @@ def main():
                                       prefetch_factor= FLAGS.prefetch_factor,
                                       pin_memory=True)
 
-        valid_datset = ImageDataset(gt_name=all_valid_gt)
+        valid_datset = ImageDataset(gt_name=all_valid_gt, FLAGS=FLAGS)
 
         valid_dataloader = DataLoader(valid_datset,
                                       batch_size=FLAGS.test_batch_size,
@@ -58,8 +58,8 @@ def main():
 
     else:
 
-        all_test = "/path/to/test/data"
-        test_datset = ImageDataset(gt_name=all_test, to_test=True)
+        all_test = "./h5py/test"
+        test_datset = ImageDataset(gt_name=all_test, to_test=True, FLAGS=FLAGS)
 
         test_dataloader = DataLoader(test_datset,
                                       batch_size=FLAGS.test_batch_size,
@@ -77,7 +77,8 @@ def main():
         print('Loading Model')
         model.load_model_inference(path=FLAGS.out_dir)
         print('Evaluating Model')
-        model.inference_(batch_size=FLAGS.test_batch_size, out_dir=FLAGS.out_dir_test)
+        # model.inference_(batch_size=FLAGS.test_batch_size, out_dir=FLAGS.out_dir_test)
+        model.kaggle_submit(batch_size=FLAGS.test_batch_size, out_dir=FLAGS.out_dir_test)
         print('done')
 
 if __name__ == '__main__':
@@ -92,8 +93,12 @@ if __name__ == '__main__':
     parser.add_argument('--train', type=utils.boolean_string, default=True, help='train mode or eval mode.')
     parser.add_argument('--resume', type=utils.boolean_string, default=False, help='train mode or eval mode.')
 
-    parser.add_argument('--out_dir', type=str, default='/path/to/save/train/models', help='Directory for train output.')
-    parser.add_argument('--out_dir_test', type=str, default='/path/to/save/inference results', help='Directory for test output.')
+    parser.add_argument('--out_dir', type=str, 
+                        default='./outdir/models', 
+                        help='Directory for train output.')
+    parser.add_argument('--out_dir_test', type=str, 
+                        default='./outdir/results', 
+                        help='Directory for test output.')
     parser.add_argument('--model_ckpt_path', type=str, default=None, help='Directory for saved model.')
 
     ### Input image parameters

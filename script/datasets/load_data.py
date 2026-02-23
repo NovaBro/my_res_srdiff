@@ -6,10 +6,10 @@ import os
 import h5py
 from natsort import natsorted
 from torchvision import transforms
-
+import re
 
 class MotionCorruptedMRIDataset2D(Dataset):
-    def __init__(self, gt_name: str, to_test=False):
+    def __init__(self, gt_name: str, to_test=False, FLAGS=None):
         if to_test:
             files = natsorted(os.listdir(gt_name))
             self.gt_files = [os.path.join(gt_name, x) for x in files]
@@ -17,6 +17,7 @@ class MotionCorruptedMRIDataset2D(Dataset):
             self.gt_files = [os.path.join(gt_name, x) for x in os.listdir(gt_name)]
 
         self.resize_transform = transforms.Resize((256, 256))
+        self.FLAGS = FLAGS
     def __len__(self):
         return len(self.gt_files)
 
@@ -49,19 +50,39 @@ class MotionCorruptedMRIDataset2D(Dataset):
 
 
     def __getitem__(self, idx):
+        sample = None
+        layer = None
         with h5py.File(self.gt_files[idx], 'r') as h5_file:
-            img_hr = torch.from_numpy(h5_file['high_resolution'][()])
+            if self.FLAGS.train: img_hr = torch.from_numpy(h5_file['high_resolution'][()])
             img_lr = torch.from_numpy(h5_file['low_resolution'][()])
+            path_nums = re.findall(r'(\d+)', self.gt_files[idx])
+            # print(path_nums)
+            # print("path_nums")
+            # print(path_nums[1])
+            # print(path_nums[2])
+            sample = path_nums[1]
+            layer = path_nums[2]
+
 
         # print(f"before {img_hr.shape}")
-        img_hr = torch.nn.functional.pad(img_hr, (80, 80, 80, 80), mode='constant', value=0)
+        if self.FLAGS.train: img_hr = torch.nn.functional.pad(img_hr, (80, 80, 80, 80), mode='constant', value=0)
         img_lr = torch.nn.functional.pad(img_lr, (80, 80, 80, 80), mode='constant', value=0)
         # Convert to torch tensors
-        img_hr = self.center_crop(self.miniMax(img_hr), shape=(384, 384))
+        if self.FLAGS.train: img_hr = self.center_crop(self.miniMax(img_hr), shape=(384, 384))
         img_lr = self.center_crop(self.miniMax(img_lr), shape=(384, 384))
 
         # Return the data
-        return {
-            'hq': img_hr.unsqueeze(dim=0),  # Shape: (1, H, W)
-            'lq': img_lr.unsqueeze(dim=0),  # Shape: (1, H, W)
-        }
+        if self.FLAGS.train: 
+            return {
+                'hq': img_hr.unsqueeze(dim=0),  # Shape: (1, H, W)
+                'lq': img_lr.unsqueeze(dim=0),  # Shape: (1, H, W)
+                'sample': sample,  # Shape: (1, H, W)
+                'layer': layer,  # Shape: (1, H, W)
+            }
+        else:
+            return {
+                'lq': img_lr.unsqueeze(dim=0),  # Shape: (1, H, W)
+                'sample': sample,  # Shape: (1, H, W)
+                'layer': layer,  # Shape: (1, H, W)
+            }
+
