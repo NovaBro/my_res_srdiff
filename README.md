@@ -1,3 +1,5 @@
+Disclaimer: This repo is a copy and worked off of the original Res_SRDIFF repo: https://github.com/mosaf/Res-SRDiff
+
 # <p align=center>`MRI super-resolution reconstruction using efficient diffusion probabilistic model with residual shifting`</p> # 
 
 
