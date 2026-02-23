@@ -1,0 +1,69 @@
+PyTorch version: 2.5.1
+Is CUDA available: True
+CUDA version (PyTorch built with): 12.4
+CUDA device count: 1
+Current CUDA device: 0
+CUDA device name: NVIDIA GeForce RTX 3060
+         Args         |    Type    |    Value
+--------------------------------------------------
+  message             |  str       |  Efficient SR-ResDiff model for LR --> HR
+  model               |  str       |  Super_resolution
+  model_name          |  str       |  unet_swuin
+  region              |  str       |  prostate
+  cuda                |  bool      |  True
+  num_gpus            |  int       |  1
+  train               |  bool      |  False
+  resume              |  bool      |  False
+  out_dir             |  str       |  ./outdir/models
+  out_dir_test        |  str       |  ./outdir/results
+  model_ckpt_path     |  NoneType  |  None
+  image_size          |  int       |  256
+  in_channels         |  int       |  1
+  out_channels        |  int       |  1
+  model_channels      |  int       |  160
+  num_res_blocks      |  list      |  [2, 2, 2, 2]
+  attention_resolutions|  tuple     |  (64, 32, 16, 8)
+  cond_lq             |  bool      |  True
+  dropout             |  float     |  0.0
+  sf                  |  float     |  1.0
+  schedule_name       |  str       |  exponential
+  schedule_kwargs     |  dict      |  {'power': 0.3}
+  etas_end            |  float     |  0.99
+  steps               |  int       |  4
+  min_noise_level     |  float     |  0.2
+  kappa               |  float     |  2.0
+  weighted_mse        |  bool      |  False
+  predict_type        |  str       |  xstart
+  timestep_respacing  |  NoneType  |  None
+  scale_factor        |  float     |  1.0
+  normalize_input     |  bool      |  False
+  latent_flag         |  bool      |  False
+  epochs              |  int       |  100
+  batch_size          |  int       |  2
+  test_batch_size     |  int       |  2
+  betas_G             |  tuple     |  (0.9, 0.999)
+  train_num_workers   |  int       |  16
+  lr                  |  float     |  5e-05
+  lr_min              |  float     |  2e-05
+  lr_schedule         |  str       |  cosin
+  warmup_iterations   |  int       |  5000
+  num_workers         |  int       |  4
+  prefetch_factor     |  int       |  8
+  weight_decay        |  float     |  1e-05
+  ema_rate            |  float     |  0.999
+  loss_coef           |  list      |  [4.0, 1.0]
+  use_amp             |  bool      |  False
+  seed                |  int       |  123456
+  global_seeding      |  bool      |  False
+Efficient SR-ResDiff model for LR --> HR
+cuda
+Number of parameters: 348.55M
+Loading Model
+
+Loading models and checkpoint from content.pth ...
+=> Loaded checkpoint from ./outdir/models
+Evaluating Model
+Number of total steps 1000
+Performing kaggle_submit ...
+Average evaluation time : 4.0933 seconds
+done
